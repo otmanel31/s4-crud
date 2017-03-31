@@ -1,0 +1,184 @@
+<html>
+	<header>
+		<title>MyApp</title>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/1.4.0/list.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+	</header>
+
+		<script>
+			var user_line_template = `
+		<table width:200px>
+		    <thead>
+		      <tr>
+		        <th>Name</th>
+		        <th>Description</th>
+                <th>Status</th>
+                <th>Result</th>
+		        <th colspan="2">Actions</th>
+		      </tr>
+		    </thead>
+		    <tbody>
+			    {{#each users}}
+			    	<tr><td style='display:none;'>{{this._id}}</td>
+			    		<td>{{this.name}}</td>
+			    		<td>{{this.description}}</td>
+                        <td>{{this.statu}}</td>
+                        <td>{{this.result}}</td>
+			    		<td><button onclick='edit_user(\"{{this._id}}\")'>Edit</button></td>
+			    		<td><button onclick='delete_user(\"{{this._id}}\")'>Remove</button></td>
+			    	</tr>
+			    {{/each}}
+		  	</tbody>
+		 </table>`;
+console.log('trace uid 2', this._id)
+			var user_line_compiled_template = Handlebars.compile(user_line_template);
+
+			function isEmpty(val) {
+    			return (val === undefined || val == null || val.length <= 0) ? true : false;
+  			}
+
+			function save_user(form) {
+				if (!isEmpty(form.uid.value)) {
+					update_user(form);
+				} else {
+					add_user(form);	
+				}
+			}
+
+			function add_user(form) {	
+                console.log('for in add', form)	
+				var payload = {};
+				payload['name'] = form.name.value;
+				payload['desc'] = form.desc.value;
+				
+				var myHeaders = new Headers();
+
+				myHeaders.append('Content-Type', 'application/json');
+				
+				var myInit = { method: 'POST',
+               				   headers: myHeaders,
+               				   body:  JSON.stringify( payload )};
+                
+                var myRequest = new Request('users', myInit);
+
+				fetch(myRequest).then(function(res){ 
+					if (res.ok) {
+					//	var location = res.headers.get('Location');
+					//	console.log('uid ='+location);						
+						reset_form();
+						load_users();
+					}
+				});				
+			}
+
+			function update_user(form) {
+				var uid = form.uid.value;
+				var payload = {};
+				payload['_id'] = uid;
+				payload['firstname'] = form.firstname.value;
+				payload['lastname'] = form.lastname.value;
+				
+				var myHeaders = new Headers();
+
+				myHeaders.append('Content-Type', 'application/json');
+				
+				var myInit = { method: 'PUT',
+               				   headers: myHeaders,
+               				   body:  JSON.stringify( payload )};
+               console.log('in update ', payload) 
+                var myRequest = new Request('users', myInit);
+				fetch(myRequest).then(function(res){ 
+					if (res.ok) {
+						reset_form();
+    					load_users();					
+					}
+				});	
+			}
+			function load_users() {				
+				var myHeaders = new Headers();
+				myHeaders.append('Content-Type', 'application/json');
+				var myInit = { method: 'GET',
+               				   headers: myHeaders };
+                var myRequest = new Request('users', myInit);
+			   	fetch(myRequest).then(function(res) {
+  					if(res.ok) {
+  						var contentType = res.headers.get("content-type");
+  						if(contentType && contentType.indexOf("application/json") !== -1) {
+    						res.json().then(function(json) {
+                                console.log(json)
+      							users = json;
+//                                script(users)
+      							// NEW: using handlebars template engine to display the list
+								document.getElementById('myUserList').innerHTML = user_line_compiled_template({ users: json });
+    						});
+  						} else {
+    						console.log("Oops, we haven't got JSON!");
+  						}
+  					} else {
+  						console.log('Network response was not ok status '+ res.status);
+  					}
+				}).catch(function(error) {
+  					console.log('There has been a problem with your fetch operation: ' + error.message);
+				});
+			}	
+
+			function delete_user(uid) {
+                console.log('trace uid',uid)
+				var myHeaders = new Headers();
+				var myInit = { method: 'DELETE',
+               				   headers: myHeaders};
+                
+                var myRequest = new Request('users'+ '/' + uid, myInit);
+
+				fetch(myRequest).then(function(res){ 
+					if (res.ok) {
+						load_users();
+					}
+				});	
+			}
+
+			function reset_form() {
+				var form = document.getElementById("myForm");
+				form.reset();
+				form.uid.value = null;
+			}
+
+			function edit_user(uid) {
+				for (var user of users) {
+  					if (user._id == uid) {
+						var form = document.getElementById('myForm');
+						form.uid.value = user._id;
+						form.firstname.value = user.firstname;
+						form.lastname.value = user.lastname;
+						break;
+					}
+				}
+			}
+
+			document.addEventListener("DOMContentLoaded", function(event) {    			
+				load_users();
+  			});		
+
+		</script>
+
+	<body>
+
+		<h1>Stat Form</h1>
+
+		<form id="myForm" onsubmit="save_user(this); return false;">
+  			<input type="hidden" placeholder="uid" name="uid">
+  			<br>
+  			<input type="text" placeholder="NAme" name="name">
+  			<br>
+  			<input type="text" placeholder="description" name="desc">
+  			<br>
+  			<button type="submit">Save</button>
+		</form>
+		
+		<h1>User list</h1>
+		
+		<div id="myUserList">		  
+		</div>
+	</body>
+</html>
